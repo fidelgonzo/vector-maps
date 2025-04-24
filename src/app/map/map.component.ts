@@ -71,19 +71,6 @@ export class MapComponent implements AfterViewInit {
   }
 
   addSvgMarkers(): void {
-    // 1. Basic Location Pin SVG Marker
-    this.addLocationPinMarker([16.41, 48.27], 'Main Location', 'red');
-
-    // 2. Custom Star SVG Marker
-    this.addStarMarker([16.414, 48.276], 'Star Location', '#FFD700');
-
-    // 3. Information "i" SVG Marker
-    this.addInfoMarker([16.405, 48.285], 'Information Point');
-
-    // 4. Custom Building SVG Marker
-    this.addBuildingMarker([16.42, 48.28], 'Office Building');
-
-    // 5. Pulsing Circle SVG Marker
     this.addPulsingMarker([16.425, 48.275], 'Live Event');
 
     // 6. Multiple SVG markers from data source
@@ -141,86 +128,6 @@ export class MapComponent implements AfterViewInit {
     .addTo(this.map);
   }
 
-  // Star SVG Marker
-  addStarMarker(lngLat: [number, number], title: string, color: string = '#FFD700'): maplibregl.Marker {
-    const el = document.createElement('div');
-    el.className = 'marker svg-marker';
-
-    // Create inline SVG for a star
-    const svgMarkup = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-        <path fill="${color}" stroke="#000" stroke-width="0.5" d="M12 0l3.09 6.26L22 7.27l-5 4.87 1.18 6.88L12 16l-6.18 3.02L7 12.14 2 7.27l6.91-1.01L12 0z"/>
-      </svg>
-    `;
-
-    el.innerHTML = svgMarkup;
-
-    const popup = new maplibregl.Popup({offset: [0, -16]})
-    .setHTML(`<h3>${title}</h3><p>Special location</p>`);
-
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'center'
-    })
-    .setLngLat(lngLat)
-    .setPopup(popup)
-    .addTo(this.map);
-  }
-
-  // Information "i" SVG Marker
-  addInfoMarker(lngLat: [number, number], title: string): maplibregl.Marker {
-    const el = document.createElement('div');
-    el.className = 'marker svg-marker';
-
-    // Create inline SVG for an information icon
-    const svgMarkup = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="11" fill="#3498db" stroke="#fff" stroke-width="1" />
-        <text x="12" y="17" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="#fff">i</text>
-      </svg>
-    `;
-
-    el.innerHTML = svgMarkup;
-
-    const popup = new maplibregl.Popup({offset: [0, -14]})
-    .setHTML(`<h3>${title}</h3><p>Click for more information about this area.</p>`);
-
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'center'
-    })
-    .setLngLat(lngLat)
-    .setPopup(popup)
-    .addTo(this.map);
-  }
-
-  // Building SVG Marker
-  addBuildingMarker(lngLat: [number, number], title: string): maplibregl.Marker {
-    const el = document.createElement('div');
-    el.className = 'marker svg-marker';
-
-    // Create inline SVG for a building
-    const svgMarkup = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-        <path fill="#7F8C8D" d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/>
-      </svg>
-    `;
-
-    el.innerHTML = svgMarkup;
-
-    const popup = new maplibregl.Popup({offset: [0, -16]})
-    .setHTML(`<h3>${title}</h3><p>Office building with multiple tenants</p>`);
-
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'center'
-    })
-    .setLngLat(lngLat)
-    .setPopup(popup)
-    .addTo(this.map);
-  }
-
-  // Pulsing Circle SVG Marker
   addPulsingMarker(lngLat: [number, number], title: string): maplibregl.Marker {
     const el = document.createElement('div');
     el.className = 'marker svg-marker pulsing-marker';
@@ -249,79 +156,4 @@ export class MapComponent implements AfterViewInit {
     .setPopup(popup)
     .addTo(this.map);
   }
-
-  addCustomMarkers(): void {
-    // 1. Basic marker with popup
-    const popup = new maplibregl.Popup({offset: 25})
-    .setHTML('<h3>Simple Marker</h3><p>This is a basic marker with a popup.</p>');
-
-    const marker = new maplibregl.Marker()
-    .setLngLat([16.4, 48.2])
-    .setPopup(popup)
-    .addTo(this.map);
-
-    // 2. Custom colored marker
-    const redMarker = new maplibregl.Marker({
-      color: '#ff0000'  // Red color
-    })
-    .setLngLat([16.41, 48.21])
-    .setPopup(new maplibregl.Popup().setHTML('<h3>Red Marker</h3>'))
-    .addTo(this.map);
-
-    // 3. Custom HTML element marker
-    const customElement = document.createElement('div');
-    customElement.className = 'custom-marker';
-    customElement.style.backgroundColor = '#3887be';
-    customElement.style.width = '25px';
-    customElement.style.height = '25px';
-    customElement.style.borderRadius = '50%';
-    customElement.style.border = '2px solid white';
-    customElement.style.boxShadow = '0 0 5px rgba(0,0,0,0.5)';
-
-    const customMarker = new maplibregl.Marker({
-      element: customElement,
-      anchor: 'bottom'
-    })
-    .setLngLat([16.405, 48.185])
-    .setPopup(new maplibregl.Popup().setHTML('<h3>Custom Element Marker</h3>'))
-    .addTo(this.map);
-
-    // 4. Draggable marker
-    const draggableMarker = new maplibregl.Marker({
-      color: '#50C878',  // Emerald green
-      draggable: true   // Make it draggable
-    })
-    .setLngLat([16.43, 48.22])
-    .addTo(this.map);
-
-    // Listen for drag events
-    draggableMarker.on('dragend', () => {
-      const lngLat = draggableMarker.getLngLat();
-      console.log(`Marker dropped at: ${lngLat.lng}, ${lngLat.lat}`);
-
-      // Create a popup with the coordinates
-      new maplibregl.Popup()
-      .setLngLat(lngLat)
-      .setHTML(`<p>New coordinates:<br>${lngLat.lng.toFixed(5)}, ${lngLat.lat.toFixed(5)}</p>`)
-      .addTo(this.map);
-    });
-
-    // 5. Add multiple markers from data source
-    const locations = [
-      {name: "Location 1", lng: 16.425, lat: 48.375, color: "#9370DB"},  // Purple
-      {name: "Location 2", lng: 16.415, lat: 48.392, color: "#FFA500"},  // Orange
-      {name: "Location 3", lng: 16.395, lat: 48.382, color: "#008080"}   // Teal
-    ];
-
-    locations.forEach(location => {
-      const popup = new maplibregl.Popup({offset: 25})
-      .setHTML(`<h3>${location.name}</h3><p>Coordinates: ${location.lng}, ${location.lat}</p>`);
-
-      new maplibregl.Marker({color: location.color})
-      .setLngLat([location.lng, location.lat])
-      .setPopup(popup)
-      .addTo(this.map);
-    });
-  }
-
 }
