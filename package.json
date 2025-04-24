@@ -21,7 +21,8 @@
     "@bluehalo/ngx-leaflet": "^19.0.0",
     "@types/leaflet": "^1.9.17",
     "leaflet": "^1.9.4",
-    "leaflet.vectorgrid": "github:maplibre/maplibre-gl-leaflet",
+    "leaflet.vectorgrid": "^1.3.0",
+    "maplibre-gl": "^4.7.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
