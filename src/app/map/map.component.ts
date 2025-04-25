@@ -1,4 +1,3 @@
-// src/app/map/map.component.ts
 import {AfterViewInit, Component, ElementRef, ViewChild} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import * as maplibregl from 'maplibre-gl';
