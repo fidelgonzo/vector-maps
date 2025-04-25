@@ -1,6 +1,10 @@
-import {AfterViewInit, Component, ElementRef, ViewChild} from '@angular/core';
+import {AfterViewInit, ChangeDetectorRef, Component, signal, ViewContainerRef} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import * as maplibregl from 'maplibre-gl';
+import {MapService} from './map.service';
+import {LeafletModule} from '@bluehalo/ngx-leaflet';
+import {latLng, tileLayer} from 'leaflet';
+import 'leaflet.vectorgrid';
+import L from 'leaflet';
 
 const markerIconSvgString = `
       <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 384 511">
@@ -22,137 +26,263 @@ const workplaceIconSvgString = `
 @Component({
   selector: 'app-map',
   standalone: true,
-  imports: [CommonModule],
-  template: `
-    <div class="map-container" #mapContainer></div>`,
+  imports: [CommonModule, LeafletModule],
+  templateUrl: './map.component.html',
   styleUrls: ['./map.component.scss']
 })
 export class MapComponent implements AfterViewInit {
-  @ViewChild('mapContainer') mapContainer!: ElementRef;
+  readonly MAP_CONTAINER_ID = 'map-view';
 
-  map!: maplibregl.Map;
   vectorStyleUrl = 'http://localhost:8080/styles/basic-preview/style.json';
 
-  ngAfterViewInit(): void {
-    this.initializeMap();
+  constructor(
+    private mapService: MapService,
+    // private mapFiltersService: MapFiltersService,
+    // private mapItemsService: MapItemsService,
+    // private mapConfigService: MapConfigService,
+    private cdr: ChangeDetectorRef,
+    // private mapMouseHandlers: MapMouseEventsService,
+    private viewContainerRef: ViewContainerRef,
+  ) {
   }
 
-  initializeMap(): void {
-    this.map = new maplibregl.Map({
-      container: this.mapContainer.nativeElement,
-      style: this.vectorStyleUrl,  // Direct use of the style.json
-      center: [16.4, 48.2],
-      zoom: 11
-    });
+  map!: L.Map;
 
-    // Add navigation controls
-    this.map.addControl(new maplibregl.NavigationControl());
+  options = {
+    layers: [
+      // tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '...' })
+    ],
+    zoom: 8,
+    center: latLng(48.7, 14.7)
+  };
 
-    // Add scale
-    this.map.addControl(new maplibregl.ScaleControl({
-      maxWidth: 100,
-      unit: 'metric'
-    }));
+  onMapReady(map: L.Map): void {
+    this.map = map;
 
-    // Map load event
-    this.map.on('load', () => {
-      console.log('Map loaded successfully');
+    // Add scale control
+    L.control.scale().addTo(map);
 
-      // this.addCustomMarkers();
-      this.addSvgMarkers();
-
-    });
-
-    // Handle errors
-    this.map.on('error', (e) => {
-      console.error('MapLibre Error:', e);
-    });
+    // Fetch and process the style.json to set up the vector tiles
+    this.setupVectorTiles(map);
   }
 
-  addSvgMarkers(): void {
-    this.addPulsingMarker([16.425, 48.275], 'Live Event');
 
-    // 6. Multiple SVG markers from data source
-    const locations = [
-      {name: "Restaurant", lngLat: [16.415, 48.292], color: "#FF5733"},
-      {name: "Hotel", lngLat: [16.395, 48.282], color: "#33A8FF"},
-      {name: "Shopping", lngLat: [16.435, 48.265], color: "#33FF57"}
-    ];
+  setupVectorTiles(map: L.Map): void {
+    // Fetch the style.json from the TileServer-GL
+    fetch(this.vectorStyleUrl)
+    .then(response => response.json())
+    .then(styleJson => {
+      // Extract the tile source URL from the style.json
+      const sources = styleJson.sources;
+      const sourceKey = Object.keys(sources)[0]; // Usually 'openmaptiles' or similar
+      const tileSource = sources[sourceKey];
 
-    locations.forEach(location => {
-      this.addLocationPinMarker(
-        location.lngLat,
-        location.name,
-        location.color
-      );
-    });
-  }
-
-  // Location Pin SVG Marker
-  addLocationPinMarker(lngLat: number[], title: string, color: string = '#3FB1CE'): maplibregl.Marker {
-    const el = document.createElement('div');
-    el.className = 'marker svg-marker';
-
-    // Create inline SVG for a location pin
-    const svgMarkupOld = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 24 36">
-        <path fill="${color}" d="M12 0C5.383 0 0 5.383 0 12c0 9 12 24 12 24s12-15 12-24c0-6.617-5.383-12-12-12zm0 18c-3.314 0-6-2.686-6-6s2.686-6 6-6 6 2.686 6 6-2.686 6-6 6z"/>
-      </svg>
-    `;
-    const svgMarkup = `
-<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 384 511">
-  <path fill="{mapIconColor}" d="M384 192C384 279.4 267 435 215.7 499.2C203.4 514.5 180.6 514.5 168.3 499.2C117 435 0 279.4 0 192C0 86 86 0 192 0C298 0 384 86 384 192Z"/>
-  <!-- Image 2 (scaled and centered) -->
-  <path class="icon" fill="white"  d="M575.8 255.5c0 18-15 32.1-32 32.1l-32 0 .7 160.2c0 2.7-.2 5.4-.5 8.1l0 16.2c0 22.1-17.9 40-40 40l-16 0c-1.1 0-2.2 0-3.3-.1c-1.4 .1-2.8 .1-4.2 .1L416 512l-24 0c-22.1 0-40-17.9-40-40l0-24 0-64c0-17.7-14.3-32-32-32l-64 0c-17.7 0-32 14.3-32 32l0 64 0 24c0 22.1-17.9 40-40 40l-24 0-31.9 0c-1.5 0-3-.1-4.5-.2c-1.2 .1-2.4 .2-3.6 .2l-16 0c-22.1 0-40-17.9-40-40l0-112c0-.9 0-1.9 .1-2.8l0-69.7-32 0c-18 0-32-14-32-32.1c0-9 3-17 10-24L266.4 8c7-7 15-8 22-8s15 2 21 7L564.8 231.5c8 7 12 15 11 24z"
-    transform="translate(80, 80) scale(0.4)"/>
-      </svg>
-    `;
-
-    // el.innerHTML = markerIconSvgString.replace('{mapIconColor}', color);
-    el.innerHTML = workplaceIconSvgString.replace('{mapIconColor}', color);
-
-    // Create popup content
-    const popup = new maplibregl.Popup({offset: [0, -36]})
-    .setHTML(`<h3>${title}</h3><p>Coordinates: ${lngLat[0].toFixed(5)}, ${lngLat[1].toFixed(5)}</p>`);
-
-    // Create and return the marker
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'bottom',
-      offset: [0, 0]
+      if (tileSource && tileSource.url) {
+        console.log('Using TileJSON URL:', tileSource.url);
+        // Fetch the TileJSON to get tile URLs
+        fetch(tileSource.url)
+        .then(response => response.json())
+        .then(tileJson => {
+          this.addVectorTileLayer(map, tileJson, styleJson);
+        });
+      } else if (tileSource && tileSource.tiles) {
+        // If the tiles array is directly specified
+        this.addVectorTileLayer(map, tileSource, styleJson);
+      } else {
+        console.error('Could not find tile source in style.json');
+      }
     })
-    // @ts-ignore
-    .setLngLat(lngLat)
-    .setPopup(popup)
-    .addTo(this.map);
+    .catch(error => {
+      console.error('Error fetching style.json:', error);
+    });
   }
 
-  addPulsingMarker(lngLat: [number, number], title: string): maplibregl.Marker {
-    const el = document.createElement('div');
-    el.className = 'marker svg-marker pulsing-marker';
+  addVectorTileLayer(map: L.Map, tileSource: any, styleJson: any): void {
+    const tileUrls = tileSource.tiles || [tileSource.url];
 
-    // Create inline SVG for a pulsing circle
-    const svgMarkup = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
-        <circle class="pulse-circle" cx="12" cy="12" r="6" fill="#FF5733" fill-opacity="0.7">
-          <animate attributeName="r" values="6;10;6" dur="2s" repeatCount="indefinite" />
-          <animate attributeName="fill-opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite" />
-        </circle>
-        <circle cx="12" cy="12" r="4" fill="#FF5733" />
-      </svg>
-    `;
+    const vectorGrid = L.vectorGrid.protobuf(tileUrls[0], {
+      // @ts-ignore
+      rendererFactory: L.canvas.tile,
+      vectorTileLayerStyles: this.generateVectorTileStyles(styleJson),
+      maxZoom: tileSource.maxzoom || 18,
+      minZoom: tileSource.minzoom || 0,
+      attribution: styleJson.attribution || '© MapTiler'
+    });
 
-    el.innerHTML = svgMarkup;
+    vectorGrid.addTo(map);
+  }
 
-    const popup = new maplibregl.Popup({offset: [0, -16]})
-    .setHTML(`<h3>${title}</h3><p>Event happening now!</p>`);
+  generateVectorTileStyles(styleJson: any): any {
+    const vectorStyles: any = {};
 
-    return new maplibregl.Marker({
-      element: el,
-      anchor: 'center'
-    })
-    .setLngLat(lngLat)
-    .setPopup(popup)
-    .addTo(this.map);
+    // Process each layer in the style
+    if (styleJson.layers) {
+      styleJson.layers.forEach((layer: any) => {
+        if (!layer.source || !layer['source-layer']) return;
+
+        const sourceLayer = layer['source-layer'];
+
+        if (!vectorStyles[sourceLayer]) {
+          vectorStyles[sourceLayer] = {};
+        }
+
+        // Create a style function based on layer type
+        vectorStyles[sourceLayer] = (properties: any) => {
+          // Apply filter if present
+          if (layer.filter) {
+            // Simple filter implementation (can be expanded)
+            const match = this.evaluateFilter(layer.filter, properties);
+            if (!match) {
+              // return null; // Skip this feature
+            }
+          }
+
+          let style: any = {};
+
+          switch (layer.type) {
+            case 'fill':
+              style = {
+                fill: true,
+                fillColor: this.getPropertyValue(layer.paint, 'fill-color', properties, '#3388ff'),
+                fillOpacity: this.getPropertyValue(layer.paint, 'fill-opacity', properties, 0.2),
+                stroke: layer.paint && layer.paint['fill-outline-color'] ? true : false,
+                color: this.getPropertyValue(layer.paint, 'fill-outline-color', properties, '#3388ff'),
+                weight: 1
+              };
+              break;
+
+            case 'line':
+              style = {
+                stroke: true,
+                color: this.getPropertyValue(layer.paint, 'line-color', properties, '#3388ff'),
+                weight: this.getPropertyValue(layer.paint, 'line-width', properties, 1),
+                opacity: this.getPropertyValue(layer.paint, 'line-opacity', properties, 1),
+                lineCap: layer.paint ? (layer.paint['line-cap'] || 'butt') : 'butt',
+                lineJoin: layer.paint ? (layer.paint['line-join'] || 'miter') : 'miter',
+                dashArray: layer.paint && layer.paint['line-dasharray'] ?
+                  layer.paint['line-dasharray'].join(',') : null,
+                fill: false
+              };
+              break;
+
+            case 'circle':
+              style = {
+                radius: this.getPropertyValue(layer.paint, 'circle-radius', properties, 5),
+                fillColor: this.getPropertyValue(layer.paint, 'circle-color', properties, '#3388ff'),
+                fillOpacity: this.getPropertyValue(layer.paint, 'circle-opacity', properties, 0.6),
+                stroke: true,
+                color: '#fff',
+                weight: 1,
+                opacity: 0.5
+              };
+              break;
+
+            case 'symbol':
+              // Basic support for symbol layers (text and icons)
+              style = {
+                icon: layer.layout && layer.layout['icon-image'] ? true : false,
+                iconUrl: layer.layout ? layer.layout['icon-image'] : null,
+                text: properties[layer.layout ? layer.layout['text-field'] : null],
+                textColor: this.getPropertyValue(layer.paint, 'text-color', properties, '#333'),
+                textSize: layer.layout ? (layer.layout['text-size'] || 12) : 12,
+                textAlign: layer.layout ? (layer.layout['text-anchor'] || 'center') : 'center'
+              };
+              break;
+          }
+
+          return style;
+        };
+      });
+    }
+
+    return vectorStyles;
+  }
+
+// Helper method to evaluate property values (including data-driven styling)
+  private getPropertyValue(paint: any, property: string, featureProps: any, defaultValue: any): any {
+    if (!paint || !paint[property]) return defaultValue;
+
+    const value = paint[property];
+
+    // Handle data-driven styling (very simplified)
+    if (typeof value === 'object' && value.type === 'identity') {
+      return featureProps[value.property] || defaultValue;
+    }
+
+    if (typeof value === 'object' && value.stops) {
+      // Very simple stops implementation
+      // In a real app, you'd interpolate based on zoom and/or property value
+      return value.stops[0][1];
+    }
+
+    return value;
+  }
+
+// Simple filter evaluation
+  private evaluateFilter(filter: any[], properties: any): boolean {
+    if (!filter || !Array.isArray(filter)) return true;
+
+    // Very simplified filter evaluation
+    // Only handling a few basic cases
+    const operator = filter[0];
+
+    if (operator === '==') {
+      const [_, key, value] = filter;
+      return properties[key] === value;
+    }
+
+    if (operator === '!=') {
+      const [_, key, value] = filter;
+      return properties[key] !== value;
+    }
+
+    if (operator === 'in') {
+      const key = filter[1];
+      const values = filter.slice(2);
+      return values.includes(properties[key]);
+    }
+
+    if (operator === '!in') {
+      const key = filter[1];
+      const values = filter.slice(2);
+      return !values.includes(properties[key]);
+    }
+
+    if (operator === 'all') {
+      return filter.slice(1).every(subfilter => this.evaluateFilter(subfilter, properties));
+    }
+
+    if (operator === 'any') {
+      return filter.slice(1).some(subfilter => this.evaluateFilter(subfilter, properties));
+    }
+
+    if (operator === 'none') {
+      return !filter.slice(1).some(subfilter => this.evaluateFilter(subfilter, properties));
+    }
+
+    return true;
+  }
+
+
+  isConfigsSidebarOpen = signal(true);
+
+  ngAfterViewInit() {
+    this.mapService.initializeMap(this.MAP_CONTAINER_ID);
+    // this.mapMouseHandlers.initializeHandlers();
+    // this.mapItemsService.showDevicesAndWorkplaces();
+    // this.mapConfigService.isEditMode.set(false);
+    // this.mapConfigService.loadActiveConfiguration();
+    this.cdr.detectChanges();
+    // LeafletTooltipService.setViewContainerRef(this.viewContainerRef);
+  }
+
+  ngOnDestroy(): void {
+    this.mapService.map.off();
+    this.mapService.map.remove();
+  }
+
+  onFiltersButtonClick(event: Event) {
+    event.stopPropagation();
+    // this.mapFiltersService.handleToggleIsFilterOpen();
   }
 }
