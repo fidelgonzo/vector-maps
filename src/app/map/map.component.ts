@@ -1,6 +1,7 @@
 import {AfterViewInit, Component, ElementRef, Renderer2, ViewChild} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import * as maplibregl from 'maplibre-gl';
+import {addClusters} from './services/clusters.service';
 
 const markerIconSvgString = `
       <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 384 511">
@@ -77,6 +78,8 @@ export class MapComponent implements AfterViewInit {
       this.addMultiColorPolyline();
 
       this.addMouseHandlers();
+
+      addClusters(this.map);
 
     });
 
