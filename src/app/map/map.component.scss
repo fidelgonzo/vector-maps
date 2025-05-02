@@ -10,3 +10,26 @@
   width: 100%;
 }
 
+.context-menu {
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.context-menu ul {
+  list-style: none;
+  padding: 8px 0;
+  margin: 0;
+}
+
+.context-menu li {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.context-menu li:hover {
+  background-color: #eee;
+}

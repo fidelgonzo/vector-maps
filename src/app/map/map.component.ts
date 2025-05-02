@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, ElementRef, ViewChild} from '@angular/core';
+import {AfterViewInit, Component, ElementRef, Renderer2, ViewChild} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import * as maplibregl from 'maplibre-gl';
 
@@ -24,14 +24,25 @@ const workplaceIconSvgString = `
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="map-container" #mapContainer></div>`,
+    <div class="map-container" #mapContainer></div>
+    <div id="context-menu" [style.display]="'none'" class="context-menu">
+      <ul>
+        <li (click)="onMenuItemClick('Option 1')">Option 1</li>
+        <li (click)="onMenuItemClick('Option 2')">Option 2</li>
+        <li (click)="onMenuItemClick('Option 3')">Option 3</li>
+      </ul>
+    </div>
+  `,
   styleUrls: ['./map.component.scss']
 })
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapContainer') mapContainer!: ElementRef;
 
   map!: maplibregl.Map;
-  vectorStyleUrl = 'http://localhost:8080/styles/basic-preview/style.json';
+  vectorStyleUrl = 'http://localhost:8090/styles/basic-preview/style.json';
+
+  constructor(private renderer: Renderer2) {
+  }
 
   ngAfterViewInit(): void {
     this.initializeMap();
@@ -60,6 +71,12 @@ export class MapComponent implements AfterViewInit {
 
       // this.addCustomMarkers();
       this.addSvgMarkers();
+
+      this.addPolyline();
+
+      this.addMultiColorPolyline();
+
+      this.addMouseHandlers();
 
     });
 
@@ -154,5 +171,157 @@ export class MapComponent implements AfterViewInit {
     .setLngLat(lngLat)
     .setPopup(popup)
     .addTo(this.map);
+  }
+
+  private currentPopup: maplibregl.Popup | null = null;
+
+// When initializing your markers
+  private addPolyline() {
+
+    // Example: Draw a red polyline
+    this.map.addSource('polyline-source', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [16.4, 48.2],
+            [16.3, 48.2],
+            [16.1, 48.1],
+            [16.0, 48.3]
+          ]
+        }
+      }
+    });
+
+    this.map.addLayer({
+      id: 'polyline-layer',
+      type: 'line',
+      source: 'polyline-source',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': 'red',
+        'line-width': 5
+      }
+    });
+
+  }
+
+  private addMouseHandlers() {
+    // Add a mouseenter event (for `mouseover`)
+    this.map.on('mouseenter', 'polyline-layer', (e) => {
+      // Change cursor style to indicate interactivity
+      this.map.getCanvas().style.cursor = 'pointer';
+
+      // Optionally modify the line's style
+      this.map.setPaintProperty('polyline-layer', 'line-color', '#00FF00'); // Change to green
+    });
+
+    // Add a mouseleave event (to reset on `mouseout`)
+    this.map.on('mouseleave', 'polyline-layer', () => {
+      // Reset cursor style
+      this.map.getCanvas().style.cursor = '';
+
+      // Reset the line's style
+      this.map.setPaintProperty('polyline-layer', 'line-color', '#FF0000'); // Change back to red
+    });
+
+    // Add a click event (to handle `clicks`)
+    // this.map.on('contextmenu', 'polyline-layer', (e) => {
+    //   const coordinates = e.lngLat;
+    //   const properties = e.features?.[0].properties || {};
+    //
+    //   alert(`Clicked on polyline! Coordinates: ${coordinates.lng}, ${coordinates.lat}, Name: ${properties}`);
+    // });
+
+    // Context menu event on polyline-layer
+    this.map.on('contextmenu', 'polyline-layer', (e) => {
+
+      e.preventDefault();
+
+      const contextMenu = document.getElementById('context-menu');
+      if (contextMenu) {
+        // Position the menu at the cursor
+        contextMenu.style.display = 'block';
+        contextMenu.style.left = `${e.originalEvent.pageX}px`;
+        contextMenu.style.top = `${e.originalEvent.pageY}px`;
+      }
+    });
+
+    // Hide context menu when clicking outside of it
+    this.renderer.listen('document', 'click', (e: MouseEvent) => {
+      const contextMenu = document.getElementById('context-menu');
+      if (contextMenu && !contextMenu.contains(e.target as Node)) {
+        contextMenu.style.display = 'none';
+      }
+    });
+  }
+
+  getStyledPolyline() {
+    const coordinates = [
+      [[16.3738, 48.2082], [16.3838, 48.2182]], // First segment
+      [[16.3838, 48.2182], [16.3938, 48.1982]], // Second segment
+      [[16.3938, 48.1982], [16.4038, 48.2082]] // Third segment
+    ];
+
+    const colors = ['#FF0000', '#FFFF00', '#00FF00'];
+
+    // Create styled features
+    const features = coordinates.map((line, index) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'LineString',
+        coordinates: line
+      },
+      properties: {
+        lineColor: colors[index] // Assign a color from the helper function
+      }
+    }));
+
+    return {
+      type: 'FeatureCollection',
+      features
+    };
+  }
+
+
+  onMenuItemClick(option: string) {
+    alert(`You clicked: ${option}`);
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+      contextMenu.style.display = 'none'; // Hide the menu after interaction
+    }
+  }
+
+
+  private addMultiColorPolyline() {
+
+    // Add the GeoJSON source
+    this.map.addSource('multi-polyline-source', {
+      type: 'geojson',
+      // @ts-ignore
+      data: this.getStyledPolyline()
+    });
+
+    // Add the polyline as a layer with dynamic colors
+    this.map.addLayer({
+      id: 'multi-polyline-layer',
+      type: 'line',
+      source: 'multi-polyline-source',
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round'
+      },
+      paint: {
+        // Use the `lineColor` property for dynamic line coloring
+        'line-color': ['get', 'lineColor'],
+        'line-width': 4
+      }
+    });
   }
 }
